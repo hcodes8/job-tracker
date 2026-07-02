@@ -48,7 +48,7 @@ app.get('/api/applications', async (req, res) => {
 
   try {
     const [rows] = await db.query(
-      `SELECT id, date_applied, job_title, job_description, url, company,
+      `SELECT id, date_applied, job_title, job_description, url, company, status,
               resume_original_name, resume_mime_type,
               IF(resume_data IS NOT NULL, true, false) AS has_resume
        FROM applications ORDER BY ${orderBy}`
@@ -64,7 +64,7 @@ app.get('/api/applications', async (req, res) => {
 app.get('/api/applications/:id', async (req, res) => {
   try {
     const [rows] = await db.query(
-      `SELECT id, date_applied, job_title, job_description, url, company,
+      `SELECT id, date_applied, job_title, job_description, url, company, status,
               resume_original_name, resume_mime_type,
               IF(resume_data IS NOT NULL, true, false) AS has_resume
        FROM applications WHERE id = ?`,
@@ -98,10 +98,13 @@ app.get('/api/applications/:id/resume', async (req, res) => {
 
 // POST create application
 app.post('/api/applications', upload.single('resume'), async (req, res) => {
-  const { date_applied, job_title, job_description, url, company } = req.body;
+  const { date_applied, job_title, job_description, url, company, status } = req.body;
   if (!job_title || !company) {
     return res.status(400).json({ error: 'job_title and company are required' });
   }
+
+  const ALLOWED_STATUSES = ['Applied', 'Interviewing', 'Offer', 'Rejected', 'Ghosted'];
+  const normalizedStatus = ALLOWED_STATUSES.includes(status) ? status : 'Applied';
 
   // Parse date, fall back to NOW() if missing or invalid
   let parsedDate = new Date();
@@ -120,14 +123,15 @@ app.post('/api/applications', upload.single('resume'), async (req, res) => {
   try {
     const [result] = await db.query(
       `INSERT INTO applications
-         (date_applied, job_title, job_description, url, company, resume_data, resume_original_name, resume_mime_type)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
+         (date_applied, job_title, job_description, url, company, status, resume_data, resume_original_name, resume_mime_type)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         parsedDate,
         job_title.trim(),
         job_description ? job_description.trim() : null,
         url ? url.trim() : null,
         company.trim(),
+        normalizedStatus,
         resumeData,
         resumeOriginalName,
         resumeMimeType,
@@ -138,6 +142,25 @@ app.post('/api/applications', upload.single('resume'), async (req, res) => {
   } catch (err) {
     console.error('[INSERT ERROR]', err.message);
     res.status(500).json({ error: 'Failed to create application', detail: err.message });
+  }
+});
+
+// PATCH update application status
+app.patch('/api/applications/:id/status', async (req, res) => {
+  const ALLOWED_STATUSES = ['Applied', 'Interviewing', 'Offer', 'Rejected', 'Ghosted'];
+  const { status } = req.body;
+  if (!ALLOWED_STATUSES.includes(status)) {
+    return res.status(400).json({ error: 'Invalid status' });
+  }
+  try {
+    const [result] = await db.query(
+      'UPDATE applications SET status = ? WHERE id = ?',
+      [status, req.params.id]
+    );
+    if (result.affectedRows === 0) return res.status(404).json({ error: 'Not found' });
+    res.json({ message: 'Status updated' });
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to update status' });
   }
 });
 
