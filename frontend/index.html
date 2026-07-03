@@ -11,6 +11,21 @@
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="css/styles.css" />
+
+  <script>
+    // Demo mode is auto-detected: on GitHub Pages, opened directly from disk,
+    // or explicit ?demo=1. Override with ?demo=0 to force API mode.
+    (function () {
+      var p = new URLSearchParams(location.search);
+      if (p.has('demo')) {
+        window.__DEMO__ = p.get('demo') !== '0';
+      } else {
+        window.__DEMO__ =
+          location.hostname.endsWith('github.io') ||
+          location.protocol === 'file:';
+      }
+    }());
+  </script>
 </head>
 
 <body>
@@ -24,6 +39,11 @@
         <span class="badge" id="badge">— applications</span>
     </header>
 
+    <div class="demo-banner" id="demoBanner" style="display:none;">
+        <span class="demo-banner-dot"></span>
+        <span><strong>Demo mode</strong> — Your data lives only in this browser. Resume upload is disabled. Clear browser storage to reset.</span>
+    </div>
+
     <!-- toolbar, table, modals etc -->
     <!-- keep ALL your existing HTML exactly the same here -->
     <div class="toolbar">
@@ -35,13 +55,32 @@
                 </svg>
                 Add Application
             </button>
+            <input type="text" class="filter-input" id="filterCompany" placeholder="Search company or title…" />
+            <select class="sort-select" id="filterStatus">
+                <option value="">All statuses</option>
+                <option value="Applied">Applied</option>
+                <option value="Interviewing">Interviewing</option>
+                <option value="Offer">Offer</option>
+                <option value="Rejected">Rejected</option>
+                <option value="Ghosted">Ghosted</option>
+            </select>
             <select class="sort-select" id="sortSelect">
                 <option value="newest">Sort: Newest</option>
                 <option value="oldest">Sort: Oldest</option>
                 <option value="company">Sort: Company A–Z</option>
             </select>
         </div>
-        <span id="loadingTxt" style="font-size:12px;color:var(--text3);display:none;">Loading…</span>
+        <div class="toolbar-right">
+            <button class="btn btn-ghost" id="exportBtn" title="Export visible rows to CSV">
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="7 10 12 15 17 10" />
+                    <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+                Export CSV
+            </button>
+            <span id="loadingTxt" style="font-size:12px;color:var(--text3);display:none;">Loading…</span>
+        </div>
     </div>
 
     <div class="bulk-bar" id="bulkBar">
@@ -65,6 +104,7 @@
                 <col class="c-date" />
                 <col class="c-titl" />
                 <col class="c-comp" />
+                <col class="c-stat" />
                 <col class="c-desc" />
                 <col class="c-url" />
                 <col class="c-res" />
@@ -75,6 +115,7 @@
                     <th>Date</th>
                     <th>Job Title</th>
                     <th>Company</th>
+                    <th>Status</th>
                     <th>Description</th>
                     <th>URL</th>
                     <th>Resume</th>
@@ -116,6 +157,16 @@
                     <input type="text" id="f_company" placeholder="e.g. Acme Corp" />
                 </div>
                 <div class="field">
+                    <label>Status</label>
+                    <select id="f_status" class="status-select">
+                        <option value="Applied">Applied</option>
+                        <option value="Interviewing">Interviewing</option>
+                        <option value="Offer">Offer</option>
+                        <option value="Rejected">Rejected</option>
+                        <option value="Ghosted">Ghosted</option>
+                    </select>
+                </div>
+                <div class="field">
                     <label>Date Applied</label>
                     <input type="datetime-local" id="f_date" />
                 </div>
@@ -127,7 +178,7 @@
                     <label>Job Description</label>
                     <textarea id="f_desc" placeholder="Paste or summarize the job description…" rows="3"></textarea>
                 </div>
-                <div class="field full">
+                <div class="field full" id="resumeField">
                     <label>Resume (PDF)</label>
                     <div class="file-drop" id="fileDrop">
                         <input type="file" id="f_resume" accept=".pdf" />
@@ -137,6 +188,13 @@
                     </div>
                     <div class="file-chosen" id="fileChosen">
                         <span>📄</span><span id="fileName"></span>
+                    </div>
+                </div>
+                <div class="field full" id="resumeFieldDemo" style="display:none;">
+                    <label>Resume (PDF)</label>
+                    <div class="demo-disabled">
+                        <span>📄</span>
+                        <span>Resume upload is disabled in demo mode. Run the app locally to attach PDFs.</span>
                     </div>
                 </div>
             </div>
@@ -185,6 +243,7 @@
 
 <div class="toast-wrap" id="toastWrap"></div>
 
+<script src="js/storage.js" defer></script>
 <script src="js/app.js" defer></script>
 </body>
 </html>

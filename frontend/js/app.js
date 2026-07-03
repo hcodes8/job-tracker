@@ -1,10 +1,17 @@
 (function () {
   'use strict';
 
-  const API = '/api';
-  const palette = ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#38bdf8','#fb923c','#e879f9'];
-  const colorMap = {};
-  let colorIdx = 0;
+  var palette = ['#4f7cff','#a78bfa','#34d399','#fbbf24','#f87171','#38bdf8','#fb923c','#e879f9'];
+  var colorMap = {};
+  var colorIdx = 0;
+  var STATUSES = ['Applied', 'Interviewing', 'Offer', 'Rejected', 'Ghosted'];
+
+  var storage = window.AppliStorage;
+  var isDemo = storage.isDemoMode;
+
+  // module state
+  var currentApps = [];
+  var selected = new Set();
 
   function companyColor(name) {
     if (!colorMap[name]) colorMap[name] = palette[colorIdx++ % palette.length];
@@ -22,21 +29,21 @@
   }
 
   function esc(s) {
-    return String(s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    return String(s == null ? '' : s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
   }
 
   function nowLocal() {
-    const d = new Date();
+    var d = new Date();
     d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
     return d.toISOString().slice(0, 16);
   }
 
   function toast(msg, type) {
     type = type || 'info';
-    const icons = { success:'✓', error:'✕', info:'ℹ' };
-    const el = document.createElement('div');
+    var icons = { success:'✓', error:'✕', info:'ℹ' };
+    var el = document.createElement('div');
     el.className = 'toast ' + type;
-    el.innerHTML = '<span>' + icons[type] + '</span><span>' + msg + '</span>';
+    el.innerHTML = '<span>' + icons[type] + '</span><span>' + esc(msg) + '</span>';
     document.getElementById('toastWrap').appendChild(el);
     setTimeout(function () {
       el.style.transition = 'opacity 0.3s';
@@ -45,7 +52,6 @@
     }, 3500);
   }
 
-  var selected = new Set();
   function updateBulkBar() {
     var bar = document.getElementById('bulkBar');
     document.getElementById('bulkCount').textContent = selected.size + ' selected';
@@ -60,21 +66,52 @@
     updateBulkBar();
   }
 
+  function normStatus(s) {
+    return STATUSES.indexOf(s) !== -1 ? s : 'Applied';
+  }
+
+  function applyFilters(apps) {
+    var q = document.getElementById('filterCompany').value.trim().toLowerCase();
+    var st = document.getElementById('filterStatus').value;
+    return apps.filter(function (a) {
+      if (st && normStatus(a.status) !== st) return false;
+      if (q) {
+        var hay = (String(a.company || '') + ' ' + String(a.job_title || '')).toLowerCase();
+        if (hay.indexOf(q) === -1) return false;
+      }
+      return true;
+    });
+  }
+
   function renderTable(apps) {
-    var tbody  = document.getElementById('tbody');
-    var table  = document.getElementById('mainTable');
-    var empty  = document.getElementById('emptyState');
+    var tbody = document.getElementById('tbody');
+    var table = document.getElementById('mainTable');
+    var empty = document.getElementById('emptyState');
+    var totalCount = currentApps.length;
 
     if (!apps || apps.length === 0) {
       table.style.display = 'none';
       empty.style.display = 'block';
-      document.getElementById('badge').textContent = '0 applications';
+      var emptyTitle = empty.querySelector('h3');
+      var emptyMsg = empty.querySelector('p');
+      if (totalCount === 0) {
+        if (emptyTitle) emptyTitle.textContent = 'No applications yet';
+        if (emptyMsg) emptyMsg.textContent = 'Start tracking your job search.';
+      } else {
+        if (emptyTitle) emptyTitle.textContent = 'No matches';
+        if (emptyMsg) emptyMsg.textContent = 'Try adjusting your filters.';
+      }
+      document.getElementById('badge').textContent =
+        totalCount + ' application' + (totalCount !== 1 ? 's' : '');
       return;
     }
 
     empty.style.display = 'none';
     table.style.display = 'table';
-    document.getElementById('badge').textContent = apps.length + ' application' + (apps.length !== 1 ? 's' : '');
+    var badge = apps.length === totalCount
+      ? totalCount + ' application' + (totalCount !== 1 ? 's' : '')
+      : apps.length + ' of ' + totalCount;
+    document.getElementById('badge').textContent = badge;
 
     var rows = '';
     for (var i = 0; i < apps.length; i++) {
@@ -83,12 +120,20 @@
       var dateStr = fmtDate(app.date_applied);
       var hasResume = app.has_resume == 1 || app.has_resume === true;
       var resumeName = app.resume_original_name || 'resume.pdf';
+      var status = normStatus(app.status);
 
       rows += '<tr id="row-' + app.id + '">';
       rows += '<td><input type="checkbox" class="row-cb" data-id="' + app.id + '" /></td>';
       rows += '<td class="cell-date">' + dateStr + '</td>';
       rows += '<td class="cell-title" title="' + esc(app.job_title) + '">' + esc(app.job_title) + '</td>';
       rows += '<td><div class="company-chip" title="' + esc(app.company) + '"><span class="dot" style="background:' + color + '"></span>' + esc(app.company) + '</div></td>';
+      rows += '<td><span class="status-pill-wrap status-' + status + '">';
+      rows += '<select class="status-pill status-' + status + '" data-id="' + app.id + '" title="Click to change status">';
+      for (var s = 0; s < STATUSES.length; s++) {
+        var sel = STATUSES[s] === status ? ' selected' : '';
+        rows += '<option value="' + STATUSES[s] + '"' + sel + '>' + STATUSES[s] + '</option>';
+      }
+      rows += '</select></span></td>';
       var desc = app.job_description || '';
       rows += '<td class="cell-desc" title="Click to expand" data-desc="' + esc(desc) + '">' + esc(desc || '—') + '</td>';
       if (app.url) {
@@ -109,12 +154,10 @@
     }
     tbody.innerHTML = rows;
 
-    // Attach checkbox listeners
     tbody.querySelectorAll('.row-cb').forEach(function (cb) {
       cb.addEventListener('change', function () {
-        var id = parseInt(this.dataset.id);
-        if (this.checked) selected.add(id);
-        else selected.delete(id);
+        var id = parseInt(this.dataset.id, 10);
+        if (this.checked) selected.add(id); else selected.delete(id);
         var row = document.getElementById('row-' + id);
         if (row) row.classList.toggle('sel', this.checked);
         updateBulkBar();
@@ -127,12 +170,49 @@
       });
     });
 
-    tbody.querySelectorAll('.cell-desc').forEach(function(td) {
-      td.addEventListener('click', function() {
+    tbody.querySelectorAll('.cell-desc').forEach(function (td) {
+      td.addEventListener('click', function () {
         var text = this.dataset.desc;
         if (text) openDesc(text);
       });
     });
+
+    tbody.querySelectorAll('.status-pill').forEach(function (sel) {
+      sel.addEventListener('click', function (e) { e.stopPropagation(); });
+      sel.addEventListener('change', function () {
+        var id = parseInt(this.dataset.id, 10);
+        var newStatus = this.value;
+        var prev = this.dataset.prev || null;
+        var selectEl = this;
+        selectEl.disabled = true;
+        storage.updateStatus(id, newStatus)
+          .then(function () {
+            for (var i = 0; i < currentApps.length; i++) {
+              if (currentApps[i].id === id) { currentApps[i].status = newStatus; break; }
+            }
+            var wrap = selectEl.parentElement;
+            STATUSES.forEach(function (s) {
+              selectEl.classList.remove('status-' + s);
+              wrap.classList.remove('status-' + s);
+            });
+            selectEl.classList.add('status-' + newStatus);
+            wrap.classList.add('status-' + newStatus);
+            selectEl.dataset.prev = newStatus;
+            var filterStatus = document.getElementById('filterStatus').value;
+            if (filterStatus && filterStatus !== newStatus) rerender();
+          })
+          .catch(function (err) {
+            toast('Status update failed: ' + err.message, 'error');
+            if (prev) selectEl.value = prev;
+          })
+          .finally(function () { selectEl.disabled = false; });
+      });
+      sel.dataset.prev = sel.value;
+    });
+  }
+
+  function rerender() {
+    renderTable(applyFilters(currentApps));
   }
 
   function loadApplications() {
@@ -140,14 +220,10 @@
     document.getElementById('loadingTxt').style.display = 'inline';
     clearSelection();
 
-    fetch(API + '/applications?sort=' + sort)
-      .then(function (res) {
-        if (!res.ok) throw new Error('HTTP ' + res.status);
-        return res.json();
-      })
+    storage.list(sort)
       .then(function (apps) {
-        console.log('[LOAD] received', apps.length, 'rows:', apps);
-        renderTable(apps);
+        currentApps = apps || [];
+        rerender();
       })
       .catch(function (err) {
         console.error('[LOAD ERROR]', err);
@@ -159,7 +235,7 @@
   }
 
   function submitApplication() {
-    var title   = document.getElementById('f_title').value.trim();
+    var title = document.getElementById('f_title').value.trim();
     var company = document.getElementById('f_company').value.trim();
     if (!title || !company) { toast('Job Title and Company are required', 'error'); return; }
 
@@ -170,22 +246,18 @@
     var fd = new FormData();
     fd.append('job_title', title);
     fd.append('company', company);
+    fd.append('status', document.getElementById('f_status').value);
     fd.append('job_description', document.getElementById('f_desc').value.trim());
     fd.append('url', document.getElementById('f_url').value.trim());
     var dv = document.getElementById('f_date').value;
     fd.append('date_applied', dv ? new Date(dv).toISOString() : new Date().toISOString());
-    var rf = document.getElementById('f_resume').files[0];
-    if (rf) fd.append('resume', rf);
+    if (!isDemo) {
+      var rf = document.getElementById('f_resume').files[0];
+      if (rf) fd.append('resume', rf);
+    }
 
-    fetch(API + '/applications', { method: 'POST', body: fd })
-      .then(function (res) {
-        return res.json().then(function (data) {
-          if (!res.ok) throw new Error(data.detail || data.error || 'Server error');
-          return data;
-        });
-      })
-      .then(function (data) {
-        console.log('[INSERT OK]', data);
+    storage.create(fd)
+      .then(function () {
         toast('Application added!', 'success');
         closeAddModal();
         loadApplications();
@@ -205,18 +277,18 @@
     var ids = Array.from(selected);
     if (!confirm('Delete ' + ids.length + ' application(s)? This cannot be undone.')) return;
 
-    fetch(API + '/applications/delete-batch', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ids: ids })
-    })
-      .then(function (res) { if (!res.ok) throw new Error('Delete failed'); return res.json(); })
-      .then(function () { toast('Deleted ' + ids.length + ' application(s)', 'success'); clearSelection(); loadApplications(); })
+    storage.deleteBatch(ids)
+      .then(function () {
+        toast('Deleted ' + ids.length + ' application(s)', 'success');
+        clearSelection();
+        loadApplications();
+      })
       .catch(function (err) { toast(err.message, 'error'); });
   }
 
   function openPdf(id, name) {
-    var url = API + '/applications/' + id + '/resume';
+    var url = storage.getResumeUrl(id);
+    if (!url) { toast('Resume preview not available in demo mode', 'info'); return; }
     document.getElementById('pdfTitle').textContent = name;
     document.getElementById('pdfFrame').src = url;
     document.getElementById('pdfDownload').href = url;
@@ -241,11 +313,14 @@
   function openAddModal() {
     document.getElementById('f_title').value = '';
     document.getElementById('f_company').value = '';
+    document.getElementById('f_status').value = 'Applied';
     document.getElementById('f_date').value = nowLocal();
     document.getElementById('f_url').value = '';
     document.getElementById('f_desc').value = '';
-    document.getElementById('f_resume').value = '';
-    document.getElementById('fileChosen').style.display = 'none';
+    if (!isDemo) {
+      document.getElementById('f_resume').value = '';
+      document.getElementById('fileChosen').style.display = 'none';
+    }
     document.getElementById('addOverlay').classList.add('open');
     setTimeout(function () { document.getElementById('f_title').focus(); }, 80);
   }
@@ -254,6 +329,54 @@
     document.getElementById('addOverlay').classList.remove('open');
   }
 
+  // CSV export — exports currently-visible (filtered) rows
+  function csvEscape(v) {
+    if (v == null) return '';
+    var s = String(v);
+    if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+    return s;
+  }
+
+  function exportCsv() {
+    var rows = applyFilters(currentApps);
+    if (rows.length === 0) { toast('Nothing to export', 'info'); return; }
+
+    var headers = ['id', 'date_applied', 'job_title', 'company', 'status', 'url', 'job_description'];
+    var lines = [headers.join(',')];
+    for (var i = 0; i < rows.length; i++) {
+      var r = rows[i];
+      lines.push([
+        csvEscape(r.id),
+        csvEscape(r.date_applied),
+        csvEscape(r.job_title),
+        csvEscape(r.company),
+        csvEscape(normStatus(r.status)),
+        csvEscape(r.url),
+        csvEscape(r.job_description)
+      ].join(','));
+    }
+    var csv = lines.join('\r\n');
+    var blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    var url = URL.createObjectURL(blob);
+    var a = document.createElement('a');
+    var stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'appli-export-' + stamp + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(function () { URL.revokeObjectURL(url); }, 1000);
+    toast('Exported ' + rows.length + ' row(s)', 'success');
+  }
+
+  // Demo-mode UI tweaks
+  if (isDemo) {
+    document.getElementById('demoBanner').style.display = 'flex';
+    document.getElementById('resumeField').style.display = 'none';
+    document.getElementById('resumeFieldDemo').style.display = 'flex';
+  }
+
+  // Wire up
   document.getElementById('addBtn').addEventListener('click', openAddModal);
   document.getElementById('addBtn2').addEventListener('click', openAddModal);
   document.getElementById('closeAdd').addEventListener('click', closeAddModal);
@@ -263,20 +386,24 @@
   document.getElementById('deleteBtn').addEventListener('click', deleteSelected);
   document.getElementById('cancelSelBtn').addEventListener('click', clearSelection);
   document.getElementById('closeDesc').addEventListener('click', closeDesc);
-  document.getElementById('descOverlay').addEventListener('click', function(e) { if (e.target === this) closeDesc(); });
+  document.getElementById('descOverlay').addEventListener('click', function (e) { if (e.target === this) closeDesc(); });
 
   document.getElementById('addOverlay').addEventListener('click', function (e) { if (e.target === this) closeAddModal(); });
   document.getElementById('pdfOverlay').addEventListener('click', function (e) { if (e.target === this) closePdf(); });
 
   document.getElementById('sortSelect').addEventListener('change', loadApplications);
+  document.getElementById('filterCompany').addEventListener('input', rerender);
+  document.getElementById('filterStatus').addEventListener('change', rerender);
+  document.getElementById('exportBtn').addEventListener('click', exportCsv);
 
   document.getElementById('selAll').addEventListener('change', function () {
+    var checked = this.checked;
     document.querySelectorAll('.row-cb').forEach(function (cb) {
-      cb.checked = document.getElementById('selAll').checked;
-      var id = parseInt(cb.dataset.id);
-      if (cb.checked) selected.add(id); else selected.delete(id);
+      cb.checked = checked;
+      var id = parseInt(cb.dataset.id, 10);
+      if (checked) selected.add(id); else selected.delete(id);
       var row = document.getElementById('row-' + id);
-      if (row) row.classList.toggle('sel', cb.checked);
+      if (row) row.classList.toggle('sel', checked);
     });
     updateBulkBar();
   });
@@ -286,26 +413,29 @@
     if ((e.metaKey || e.ctrlKey) && e.key === 'k') { e.preventDefault(); openAddModal(); }
   });
 
-  // File pick
-  document.getElementById('f_resume').addEventListener('change', function () {
-    var f = this.files[0];
-    if (f) { document.getElementById('fileName').textContent = f.name; document.getElementById('fileChosen').style.display = 'flex'; }
-  });
+  // File pick (server mode only)
+  if (!isDemo) {
+    document.getElementById('f_resume').addEventListener('change', function () {
+      var f = this.files[0];
+      if (f) {
+        document.getElementById('fileName').textContent = f.name;
+        document.getElementById('fileChosen').style.display = 'flex';
+      }
+    });
 
-  var fileDrop = document.getElementById('fileDrop');
-  fileDrop.addEventListener('dragover', function (e) { e.preventDefault(); this.classList.add('over'); });
-  fileDrop.addEventListener('dragleave', function () { this.classList.remove('over'); });
-  fileDrop.addEventListener('drop', function (e) {
-    e.preventDefault(); this.classList.remove('over');
-    var f = e.dataTransfer.files[0];
-    if (f && f.type === 'application/pdf') {
-      document.getElementById('f_resume').files = e.dataTransfer.files;
-      document.getElementById('fileName').textContent = f.name;
-      document.getElementById('fileChosen').style.display = 'flex';
-    } else { toast('Please drop a PDF file', 'error'); }
-  });
+    var fileDrop = document.getElementById('fileDrop');
+    fileDrop.addEventListener('dragover', function (e) { e.preventDefault(); this.classList.add('over'); });
+    fileDrop.addEventListener('dragleave', function () { this.classList.remove('over'); });
+    fileDrop.addEventListener('drop', function (e) {
+      e.preventDefault(); this.classList.remove('over');
+      var f = e.dataTransfer.files[0];
+      if (f && f.type === 'application/pdf') {
+        document.getElementById('f_resume').files = e.dataTransfer.files;
+        document.getElementById('fileName').textContent = f.name;
+        document.getElementById('fileChosen').style.display = 'flex';
+      } else { toast('Please drop a PDF file', 'error'); }
+    });
+  }
 
-  // Initialize app
   loadApplications();
-
 }());

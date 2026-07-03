@@ -105,6 +105,68 @@
      display: flex;
      align-items: center;
      gap: 10px;
+     flex-wrap: wrap;
+ }
+
+ .toolbar-right {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+ }
+
+ .filter-input {
+     background: var(--surface2);
+     color: var(--text);
+     border: 1px solid var(--border2);
+     border-radius: var(--radius);
+     padding: 8px 12px;
+     font-family: var(--font);
+     font-size: 13.5px;
+     outline: none;
+     width: 220px;
+     transition: border-color 0.15s, box-shadow 0.15s;
+ }
+
+ .filter-input::placeholder { color: var(--text3); }
+
+ .filter-input:focus {
+     border-color: var(--accent);
+     box-shadow: 0 0 0 3px var(--accent-glow);
+ }
+
+ /* Demo banner */
+ .demo-banner {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     padding: 10px 32px;
+     background: rgba(251, 191, 36, 0.08);
+     border-bottom: 1px solid rgba(251, 191, 36, 0.2);
+     color: var(--text2);
+     font-size: 13px;
+ }
+
+ .demo-banner strong { color: #fbbf24; font-weight: 600; }
+
+ .demo-banner-dot {
+     width: 8px;
+     height: 8px;
+     border-radius: 50%;
+     background: #fbbf24;
+     box-shadow: 0 0 8px rgba(251, 191, 36, 0.6);
+     flex-shrink: 0;
+ }
+
+ .demo-disabled {
+     display: flex;
+     align-items: center;
+     gap: 10px;
+     padding: 14px 16px;
+     background: var(--surface2);
+     border: 1px dashed var(--border2);
+     border-radius: 10px;
+     color: var(--text3);
+     font-size: 13px;
  }
 
  /* Buttons */
@@ -218,6 +280,10 @@
 
  col.c-comp {
      width: 165px;
+ }
+
+ col.c-stat {
+     width: 120px;
  }
 
  col.c-desc {
@@ -368,6 +434,121 @@
  .no-resume {
      color: var(--text3);
      font-size: 12px;
+ }
+
+ /* Status badge */
+ .status-badge {
+     display: inline-flex;
+     align-items: center;
+     gap: 6px;
+     padding: 3px 10px;
+     border-radius: 999px;
+     font-size: 12px;
+     font-weight: 500;
+     border: 1px solid transparent;
+     white-space: nowrap;
+ }
+
+ .status-badge::before {
+     content: '';
+     width: 6px;
+     height: 6px;
+     border-radius: 50%;
+     background: currentColor;
+ }
+
+ .status-Applied      { color: #7da1ff; background: rgba(79, 124, 255, 0.12); border-color: rgba(79, 124, 255, 0.3); }
+ .status-Interviewing { color: #fbbf24; background: rgba(251, 191, 36, 0.12); border-color: rgba(251, 191, 36, 0.3); }
+ .status-Offer        { color: #34d399; background: rgba(52, 211, 153, 0.12); border-color: rgba(52, 211, 153, 0.3); }
+ .status-Rejected     { color: #f87171; background: rgba(248, 113, 113, 0.12); border-color: rgba(248, 113, 113, 0.3); }
+ .status-Ghosted      { color: #8b92a8; background: rgba(139, 146, 168, 0.12); border-color: rgba(139, 146, 168, 0.3); }
+
+ /* Inline editable status (table row) */
+ .status-pill {
+     appearance: none;
+     -webkit-appearance: none;
+     border: 1px solid transparent;
+     border-radius: 999px;
+     padding: 3px 22px 3px 22px;
+     font-family: var(--font);
+     font-size: 12px;
+     font-weight: 500;
+     cursor: pointer;
+     outline: none;
+     background-repeat: no-repeat;
+     background-position: right 7px center;
+     background-size: 10px;
+     transition: filter 0.15s, box-shadow 0.15s;
+ }
+
+ .status-pill::before {
+     /* dot is faked via padding-left + background dot below */
+ }
+
+ .status-pill:hover {
+     filter: brightness(1.2);
+ }
+
+ .status-pill:focus {
+     box-shadow: 0 0 0 3px var(--accent-glow);
+ }
+
+ /* dot + chevron, encoded per color via inline background-image fallback */
+ .status-pill.status-Applied      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%237da1ff' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); }
+ .status-pill.status-Interviewing { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23fbbf24' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); }
+ .status-pill.status-Offer        { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2334d399' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); }
+ .status-pill.status-Rejected     { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23f87171' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); }
+ .status-pill.status-Ghosted      { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%238b92a8' stroke-width='2.5'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E"); }
+
+ /* Combine background-image (chevron) with the colored dot using a layered ::before */
+ .status-pill-wrap {
+     display: inline-flex;
+     align-items: center;
+     position: relative;
+ }
+
+ .status-pill-wrap::before {
+     content: '';
+     position: absolute;
+     left: 9px;
+     top: 50%;
+     width: 6px;
+     height: 6px;
+     border-radius: 50%;
+     transform: translateY(-50%);
+     pointer-events: none;
+ }
+
+ .status-pill-wrap.status-Applied::before      { background: #7da1ff; }
+ .status-pill-wrap.status-Interviewing::before { background: #fbbf24; }
+ .status-pill-wrap.status-Offer::before        { background: #34d399; }
+ .status-pill-wrap.status-Rejected::before     { background: #f87171; }
+ .status-pill-wrap.status-Ghosted::before      { background: #8b92a8; }
+
+ /* select options use dark background to match the theme */
+ .status-pill option { background: var(--surface); color: var(--text); }
+
+ /* Status select in form */
+ .status-select {
+     appearance: none;
+     background: var(--surface2);
+     color: var(--text);
+     border: 1px solid var(--border2);
+     border-radius: 8px;
+     padding: 9px 32px 9px 12px;
+     font-family: var(--font);
+     font-size: 13.5px;
+     cursor: pointer;
+     outline: none;
+     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%238b92a8' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
+     background-repeat: no-repeat;
+     background-position: right 8px center;
+     transition: border-color 0.15s, box-shadow 0.15s;
+ }
+
+ .status-select:focus {
+     border-color: var(--accent);
+     box-shadow: 0 0 0 3px var(--accent-glow);
  }
 
  input[type="checkbox"] {
