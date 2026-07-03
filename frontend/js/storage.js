@@ -5,48 +5,7 @@
   var NEXT_ID_KEY = 'appli:next_id';
   var SEEDED_KEY = 'appli:seeded';
 
-  var SEED = [
-    {
-      job_title: 'Senior Frontend Engineer',
-      company: 'Vercel',
-      status: 'Interviewing',
-      url: 'https://vercel.com/careers',
-      job_description: 'Build the future of the web platform. React, Next.js, edge runtime.',
-      daysAgo: 3
-    },
-    {
-      job_title: 'Software Engineer II',
-      company: 'Stripe',
-      status: 'Applied',
-      url: 'https://stripe.com/jobs',
-      job_description: 'Work on payments infrastructure at global scale.',
-      daysAgo: 7
-    },
-    {
-      job_title: 'Full Stack Developer',
-      company: 'Linear',
-      status: 'Offer',
-      url: 'https://linear.app/careers',
-      job_description: 'Craft beautiful, fast software for product teams.',
-      daysAgo: 21
-    },
-    {
-      job_title: 'Backend Engineer',
-      company: 'Cloudflare',
-      status: 'Rejected',
-      url: 'https://www.cloudflare.com/careers',
-      job_description: 'Distributed systems work on the global edge network.',
-      daysAgo: 35
-    },
-    {
-      job_title: 'Platform Engineer',
-      company: 'Fly.io',
-      status: 'Ghosted',
-      url: 'https://fly.io/jobs',
-      job_description: 'Run apps close to users on a global compute platform.',
-      daysAgo: 60
-    }
-  ];
+  var SEED = [];
 
   function readAll() {
     try {
