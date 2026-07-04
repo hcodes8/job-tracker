@@ -2,6 +2,10 @@
 
 A full stack web app for tracking job applications with PDF resume storage.
 
+## Demo
+
+https://hcodes8.github.io/job-tracker/
+
 ## Setup
 
 **1. Database**
